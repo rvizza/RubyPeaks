@@ -144,15 +144,7 @@ class TrainingPeaks
   end
 
   def saveWorkoutDataToFile( workoutID, filename )
-    usePersonIDfromUsername() if @personID.nil?
-
-    params = { username: @user,
-              password: @password,
-              personId: @personID,
-              workoutIds: workoutID }
-
-    url = TPBASE + "/GetExtendedWorkoutsForAccessibleAthlete" + '?' + params.map{|e| e.join('=')}.join('&')
-    puts( url )
+    url = getDownloadUrl( workoutID )
 
     open( filename, 'wb' ) do |f|
       f << open( url ).read
@@ -168,6 +160,17 @@ class TrainingPeaks
     end
 
     pwx_doc
+  end
+
+  def getDownloadUrl( workoutID )
+    usePersonIDfromUsername() if @personID.nil?
+
+    params = { username: @user,
+              password: @password,
+              personId: @personID,
+              workoutIds: workoutID }
+
+    TPBASE + "/GetExtendedWorkoutsForAccessibleAthlete" + '?' + params.map{|e| e.join('=')}.join('&')
   end
 
   def getNodeFloatAndAttrHash( node )
