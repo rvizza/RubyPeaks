@@ -29,13 +29,9 @@ class TrainingPeaks
   end
 
   def openClient
-    if ( @@client.nil? ) #&& !@user.nil? && !@password.nil? )
-      @@client = Savon.client( wsdl: TPWSDL )
-    end
+    @@client = Savon.client( wsdl: TPWSDL ) if @@client.nil?
 
-    if ( @@client.nil? )
-      Rails.logger.error "Can't open TrainingPeaks Client"
-    end
+    Rails.logger.error "Can't open TrainingPeaks Client" if @@client.nil?
 
     @@client
   end
@@ -71,13 +67,16 @@ class TrainingPeaks
     !@guid.nil?   # if guid is non-nil, it worked!
   end
 
-  def getAccessibleAthletes( athTypes= ["CoachedPremium", "SelfCoachedPremium", "SharedSelfCoachedPremium", "SharedCoachedPremium", "CoachedFree", "SharedFree", "Plan"] )
-    athletes=nil
+  def getAccessibleAthletes( athTypes= ["CoachedPremium",
+                                        "SelfCoachedPremium",
+                                        "SharedSelfCoachedPremium",
+                                        "SharedCoachedPremium",
+                                        "CoachedFree",
+                                        "SharedFree",
+                                        "Plan"] )
 
     resp = callTP( :get_accessible_athletes, { types: athTypes } )
-    athletes = resp.body[:get_accessible_athletes_response][:get_accessible_athletes_result]
-
-    @athletes = athletes
+    @athletes = resp.body[:get_accessible_athletes_response][:get_accessible_athletes_result]
   end
 
   #
@@ -85,47 +84,40 @@ class TrainingPeaks
   # returns the personID for that athlete
   # if username is nil, will attempt to match an athlete where username == @user
   #
-  def usePersonIDfromUsername( username=nil )
-    id = nil
-
+  def getPersonID( username=nil )
     matchuser = username.nil? ? @user : username
 
-    if @athletes.nil?
-      getAccessibleAthletes()
-    end
+    getAccessibleAthletes() if @athletes.nil?
 
     if @athletes.nil? or @athletes.length() != 1
       Rails.logger.error "TrainingPeaks returned number of athletes other than 1"
+    else
+      person = @athletes[:person_base]
+      @personID = person[:person_id] if !person.nil? and person[:username] == matchuser
     end
 
-    person = @athletes[:person_base]
-    if !person.nil? and person[:username] == matchuser
-      id = person[:person_id]
-    end
-
-    @personID = id
+    @personID
   end
 
   #
-  # retrieves historical or future scheduled workouts for the current personID (set with usePersonIDfromUsername)
+  # retrieves historical or future scheduled workouts for the current personID (set with getPersonID)
   # for date range.  dates are of format YYYY-MM-DD, e.g. "2014-10-24"
   #
   def getWorkouts( start_date, end_date )
     workouts = nil
 
-    if ( @personID.nil? )
-      # personID not set... try for current user
-      usePersonIDfromUsername()
-    end
+    getPersonID if @personID.nil?
 
-    resp = callTP( :get_workouts_for_accessible_athlete,
-        { personId: @personID, startDate: start_date, endDate: end_date } )
+    unless @personID.nil?
+      resp = callTP( :get_workouts_for_accessible_athlete,
+          { personId: @personID, startDate: start_date, endDate: end_date } )
 
-    if (!resp.body.nil? && !resp.body[:get_workouts_for_accessible_athlete_response].nil? &&
-      !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result].nil? &&
-      !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout].nil? )
+      if (!resp.body.nil? && !resp.body[:get_workouts_for_accessible_athlete_response].nil? &&
+        !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result].nil? &&
+        !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout].nil? )
 
-        workouts = resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout]
+          workouts = resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout]
+      end
     end
 
     workouts
@@ -135,7 +127,9 @@ class TrainingPeaks
   # gets workout data (PWX file) for a single workoutID or array of workoutID(s)
   #
   def getWorkoutData( workoutID )
-    usePersonIDfromUsername() if @personID.nil?
+    getPersonID if @personID.nil?
+
+    return nil if @personID.nil?
 
     resp = callTP( :get_extended_workouts_for_accessible_athlete,
         { personId: @personID, workoutIds: workoutID } )
@@ -146,9 +140,12 @@ class TrainingPeaks
   def saveWorkoutDataToFile( workoutID, filename )
     url = getDownloadUrl( workoutID )
 
+    return false if url.nil?
+
     open( filename, 'wb' ) do |f|
       f << open( url ).read
     end
+    true
   end
 
   def loadFile( aFileName )
@@ -163,7 +160,9 @@ class TrainingPeaks
   end
 
   def getDownloadUrl( workoutID )
-    usePersonIDfromUsername() if @personID.nil?
+    getPersonID if @personID.nil?
+
+    return nil if @personID.nil?
 
     params = { username: @user,
               password: @password,
