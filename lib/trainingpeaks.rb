@@ -241,32 +241,6 @@ class TrainingPeaks
     samples
   end
 
-  # PWX file format
-  # <xsd:element name="timeoffset" type="xsd:double"/>
-  # <!-- timeoffset is seconds offset from beginning of wkt  -->
-  # <!--  Performance info  -->
-  # <xsd:element name="hr" type="xsd:unsignedByte" minOccurs="0"/>
-  # <!--  heart rate in bpm  -->
-  # <xsd:element name="spd" type="xsd:double" minOccurs="0"/>
-  # <!--  speed in mps  -->
-  # <xsd:element name="pwr" type="xsd:short" minOccurs="0"/>
-  # <!--  power in watts  -->
-  # <xsd:element name="torq" type="xsd:double" minOccurs="0"/>
-  # <!--  torque in N-m  -->
-  # <xsd:element name="cad" type="xsd:unsignedByte" minOccurs="0"/>
-  # <!--  cadence in rpm  -->
-  # <!--  Position info  -->
-  # <xsd:element name="dist" type="xsd:double" minOccurs="0"/>
-  # <!--  distance in meters from beginning  -->
-  # <xsd:element name="lat" type="latitudeType" minOccurs="0"/>
-  # <xsd:element name="lon" type="longitudeType" minOccurs="0"/>
-  # <xsd:element name="alt" type="xsd:double" minOccurs="0"/>
-  # <!--  elevation in meters  -->
-  # <xsd:element name="temp" type="xsd:double" minOccurs="0"/>
-  # <!--  temperature in celcius  -->
-  # <!--  Real time if available  -->
-  # <xsd:element name="time" type="xsd:dateTime" minOccurs="0"/>
-
   def get_ride_start_time( pwx_doc )
     start_time = nil
 
@@ -289,113 +263,19 @@ class TrainingPeaks
     comment
   end
 
-  def pwx_get_file_data( pwx_doc, caller_keys, min_val, max_val )
+  def pwx_get_file_data( pwx_doc )
     ride_data = []
 
     if !pwx_doc.nil?
-      prev_tstamp = 0
       pwx_doc.xpath( "//xmlns:workout/xmlns:sample" ).each do |s|
         sa = {}
         s.children.each do |c|
-          next if c.class != Nokogiri::XML::Element or caller_keys[c.name].nil?
-          sa[caller_keys[c.name]] = c.text.to_f
+          next if c.class != Nokogiri::XML::Element
+          sa[c.name] = c.name == "timeoffset" ? c.text.to_i : c.text.to_f
         end
-
-        gap = sa[caller_keys["timeoffset"]].to_i - prev_tstamp - 1
-        fill_gaps( ride_data, gap, caller_keys ) if gap > 0
         ride_data << sa
-        prev_tstamp = sa[caller_keys["timeoffset"]].to_i
       end
     end
-
-    validate_ride_data( ride_data, caller_keys, min_val, max_val )
+    ride_data
   end
-
-  def validate_ride_data( ride_data, caller_keys, min_val, max_val )
-    timeoffset_caller_key = caller_keys.delete("timeoffset") # this stream has already been scrubbed
-    valid_vals = Hash[*caller_keys.values.map {|k| [k, false]}.flatten]
-    prev_vals = Hash[*caller_keys.values.map {|k| [k, 0.0]}.flatten]
-
-    # search for valid data
-    ride_data.each do |rd|
-      valid_vals.keys.each do |caller_key|
-        unless rd[caller_key].nil? or min_val[caller_key].nil? or max_val[caller_key].nil?
-          if caller_keys["lat"] == caller_key
-            if !valid_vals[caller_key]
-              valid_vals[caller_key] = true
-              prev_vals[caller_key] = rd[caller_key]
-            end
-          elsif caller_keys["long"] == caller_key
-            if !valid_vals[caller_key]
-              valid_vals[caller_key] = true
-              prev_vals[caller_key] = rd[caller_key]
-            end
-          elsif !valid_vals[caller_key] and rd[caller_key] > min_val[caller_key] and rd[caller_key] < max_val[caller_key]
-            valid_vals[caller_key] = true
-            prev_vals[caller_key] = rd[caller_key]
-          end
-        end
-      end
-      break unless valid_vals.value?(false)
-    end
-
-    # remove pairs where there are no valid values, i.e. empty streams
-    valid_vals.delete_if { |k,v| !v }
-
-    # fix anomolous data in an otherwise clean stream
-    ride_data.each do |rd|
-      valid_vals.keys.each do |caller_key|
-        if caller_keys["lat"] == caller_key
-          rd[caller_key] = prev_vals[caller_key] if rd[caller_key].nil?
-        elsif caller_keys["long"] == caller_key
-          rd[caller_key] = prev_vals[caller_key] if rd[caller_key].nil?
-        else
-          rd[caller_key] = prev_vals[caller_key] if rd[caller_key].nil? or rd[caller_key] < min_val[caller_key] or rd[caller_key] > max_val[caller_key]
-        end
-        prev_vals[caller_key] = rd[caller_key]
-      end
-    end
-
-    return ride_data, (valid_vals.keys << timeoffset_caller_key) # add back the caller key for timeoffset
-  end
-
-  # def valid_lat_long( min, max, lat_long)
-  #   ll = lat_long
-  #   if ll > max
-  #     while (ll > max)
-  #       ll -= max
-  #     end
-  #   end
-  #   if ll < min
-  #     while (ll < min)
-  #       ll += min
-  #     end
-  #   end
-  #   return ((ll < (min+1) || ll > (max-1)) ? false : true)
-  # end
-
-  def fill_gaps( ride_data, gap, caller_keys )
-    recent = ride_data.last
-    gap.times do |index|
-      sa = {}
-      sa[caller_keys["timeoffset"]]   = recent[caller_keys["timeoffset"]] + index + 1
-      sa[caller_keys["lat"]]          = recent[caller_keys["lat"]]
-      sa[caller_keys["long"]]         = recent[caller_keys["long"]]
-      sa[caller_keys["distance"]]     = recent[caller_keys["distance"]]
-      sa[caller_keys["alt"]]          = recent[caller_keys["alt"]]
-      sa[caller_keys["hr"]]           = recent[caller_keys["hr"]]
-      sa[caller_keys["temp"]]         = recent[caller_keys["temp"]]
-      if (gap > 10)
-        sa[caller_keys["watts"]]    = 0.0
-        sa[caller_keys["spd"]]      = 0.0
-        sa[caller_keys["cad"]]      = 0.0
-      else
-        sa[caller_keys["watts"]]    = recent[caller_keys["watts"]]
-        sa[caller_keys["spd"]]      = recent[caller_keys["spd"]]
-        sa[caller_keys["cad"]]      = recent[caller_keys["cad"]]
-      end
-      ride_data << sa
-    end
-  end
-
 end
