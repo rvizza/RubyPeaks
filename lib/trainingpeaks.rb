@@ -67,7 +67,7 @@ class TrainingPeaks
     !@guid.nil?   # if guid is non-nil, it worked!
   end
 
-  def getAccessibleAthletes( athTypes= ["CoachedPremium",
+  def getAccessibleAthletes( athTypes= [# "CoachedPremium",         # TODO: adding this selector returns null results
                                         "SelfCoachedPremium",
                                         "SharedSelfCoachedPremium",
                                         "SharedCoachedPremium",
