@@ -67,16 +67,22 @@ class TrainingPeaks
     !@guid.nil?   # if guid is non-nil, it worked!
   end
 
-  def getAccessibleAthletes( athTypes= [# "CoachedPremium",         # TODO: adding this selector returns null results
+  def getAccessibleAthletes( athTypes= ["CoachedPremium",
                                         "SelfCoachedPremium",
                                         "SharedSelfCoachedPremium",
                                         "SharedCoachedPremium",
                                         "CoachedFree",
                                         "SharedFree",
                                         "Plan"] )
-
-    resp = callTP( :get_accessible_athletes, { types: athTypes } )
-    @athletes = resp.body[:get_accessible_athletes_response][:get_accessible_athletes_result]
+    # TP returns somewhat random results depending on the combination of athlete types provided to their API
+    # Cycle through all athlete types one at a time to ensure that TP can handle it
+    athTypes.each do |athType|
+      resp = callTP( :get_accessible_athletes, { types: athType } )
+      unless resp.body[:get_accessible_athletes_response][:get_accessible_athletes_result].blank?
+        @athletes = resp.body[:get_accessible_athletes_response][:get_accessible_athletes_result]
+        break;
+      end
+    end
   end
 
   #
@@ -116,7 +122,13 @@ class TrainingPeaks
         !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result].nil? &&
         !resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout].nil? )
 
+        # TP returns a Hash if there is one result, and an Array if there are multiple
+        # Ensure that this method always returns an Array for our callers
+        if resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout].is_a? Hash
+          workouts = [resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout]]
+        else
           workouts = resp.body[:get_workouts_for_accessible_athlete_response][:get_workouts_for_accessible_athlete_result][:workout]
+        end
       end
     end
 
