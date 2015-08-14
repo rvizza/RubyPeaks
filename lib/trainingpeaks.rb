@@ -5,6 +5,7 @@ require 'nokogiri'
 class TrainingPeaks
   TPBASE= 'http://www.trainingpeaks.com/tpwebservices/service.asmx'
   TPWSDL= TPBASE + '?WSDL'
+  TIMEOFFSET = "timeoffset"
 
   @@client = nil
 
@@ -283,7 +284,7 @@ class TrainingPeaks
         sa = {}
         s.children.each do |c|
           next if c.class != Nokogiri::XML::Element
-          sa[c.name] = c.name == "timeoffset" ? c.text.to_i : c.text.to_f
+          sa[c.name] = c.name == TIMEOFFSET ? c.text.to_i : c.text.to_f
         end
         ride_data << sa
       end
