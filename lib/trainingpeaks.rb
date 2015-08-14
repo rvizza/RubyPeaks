@@ -5,7 +5,16 @@ require 'nokogiri'
 class TrainingPeaks
   TPBASE= 'http://www.trainingpeaks.com/tpwebservices/service.asmx'
   TPWSDL= TPBASE + '?WSDL'
-  TIMEOFFSET = "timeoffset"
+  TP_TIMEOFFSET = "timeoffset"
+  TP_HR = "hr"
+  TP_DIST = "dist"
+  TP_CAD = "cad"
+  TP_PWR = "pwr"
+  TP_SPD = "spd"
+  TP_TEMP = "temp"
+  TP_ALT = "alt"
+  TP_LAT = "lat"
+  TP_LON = "lon"
 
   @@client = nil
 
@@ -284,7 +293,33 @@ class TrainingPeaks
         sa = {}
         s.children.each do |c|
           next if c.class != Nokogiri::XML::Element
-          sa[c.name] = c.name == TIMEOFFSET ? c.text.to_i : c.text.to_f
+
+          # write this in long form to avoid allocating many many duplicate strings
+          case c.name
+          when TP_TIMEOFFSET
+            sa[TP_TIMEOFFSET] = c.text.to_i
+          when TP_HR
+            sa[TP_HR] = c.text.to_f
+          when TP_DIST
+            sa[TP_DIST] = c.text.to_f
+          when TP_CAD
+            sa[TP_CAD] = c.text.to_f
+          when TP_PWR
+            sa[TP_PWR] = c.text.to_f
+          when TP_SPD
+            sa[TP_SPD] = c.text.to_f
+          when TP_TEMP
+            sa[TP_TEMP] = c.text.to_f
+          when TP_ALT
+            sa[TP_ALT] = c.text.to_f
+          when TP_LAT
+            sa[TP_LAT] = c.text.to_f
+          when TP_LON
+            sa[TP_LON] = c.text.to_f
+          else
+            sa[c.name] = c.text.to_f
+          end
+          # sa[c.name] = c.name == TIMEOFFSET ? c.text.to_i : c.text.to_f
         end
         ride_data << sa
       end
