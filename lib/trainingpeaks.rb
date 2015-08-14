@@ -320,8 +320,6 @@ class TrainingPeaks
             sa[c.name] = c.text.to_f
           end
           # sa[c.name] = c.name == TIMEOFFSET ? c.text.to_i : c.text.to_f
-          c.name = nil
-          c.text = nil
         end
         ride_data << sa
       end
