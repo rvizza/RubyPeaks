@@ -297,27 +297,27 @@ class TrainingPeaks
           # write this in long form to avoid allocating many many duplicate strings
           case c.name
           when TP_TIMEOFFSET
-            sa[TP_TIMEOFFSET] = c.text.to_i
+            sa[:timeoffset] = c.text.to_i
           when TP_HR
-            sa[TP_HR] = c.text.to_f
+            sa[:hr] = c.text.to_f
           when TP_DIST
-            sa[TP_DIST] = c.text.to_f
+            sa[:dist] = c.text.to_f
           when TP_CAD
-            sa[TP_CAD] = c.text.to_f
+            sa[:cad] = c.text.to_f
           when TP_PWR
-            sa[TP_PWR] = c.text.to_f
+            sa[:pwr] = c.text.to_f
           when TP_SPD
-            sa[TP_SPD] = c.text.to_f
+            sa[:spd] = c.text.to_f
           when TP_TEMP
-            sa[TP_TEMP] = c.text.to_f
+            sa[:temp] = c.text.to_f
           when TP_ALT
-            sa[TP_ALT] = c.text.to_f
+            sa[:alt] = c.text.to_f
           when TP_LAT
-            sa[TP_LAT] = c.text.to_f
+            sa[:lat] = c.text.to_f
           when TP_LON
-            sa[TP_LON] = c.text.to_f
+            sa[:lon] = c.text.to_f
           else
-            sa[c.name] = c.text.to_f
+            sa[c.name.to_sym] = c.text.to_f
           end
           # sa[c.name] = c.name == TIMEOFFSET ? c.text.to_i : c.text.to_f
         end
